@@ -1,0 +1,9 @@
+<Window x:Class="VirtualNanny.CryDetection.ModelTester.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Cry Detection Tester" Height="200" Width="400">
+    <StackPanel Margin="20">
+        <Button Content="Select audio file..." Click="SelectFile_Click" Width="200" Margin="0,0,0,10"/>
+        <TextBlock x:Name="ResultText" FontSize="16" Text="Result will appear here."/>
+    </StackPanel>
+</Window>
