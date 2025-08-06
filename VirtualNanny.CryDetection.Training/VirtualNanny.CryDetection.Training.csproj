@@ -15,6 +15,7 @@
   <!-- Copy learning_data folder from project directory to output directory -->
   <ItemGroup>
     <None Include="learning_data\**\*" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Model\cryDetectionModel.zip" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
