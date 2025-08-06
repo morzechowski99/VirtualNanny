@@ -12,4 +12,9 @@
     <PackageReference Include="NWaves" Version="0.9.6" />
   </ItemGroup>
 
+  <!-- Copy learning_data folder from project directory to output directory -->
+  <ItemGroup>
+    <None Include="learning_data\**\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

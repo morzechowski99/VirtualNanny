@@ -1,7 +1,8 @@
 ﻿using Microsoft.ML;
-using VirtualNanny.CryDetection.Training;
 
-static class Program
+namespace VirtualNanny.CryDetection.Training;
+
+internal static class Program
 {
     private static void Main(string[] args)
     {
@@ -17,13 +18,37 @@ static class Program
 
     private static List<AudioData> PrepareTrainingData()
     {
-        // TODO: Load data from a file or another source
-        return new List<AudioData>
-            {
-                new AudioData { FilePath = "path/to/file1.wav", IsCry = true },
-                new AudioData { FilePath = "path/to/file2.wav", IsCry = false },
-                // Add more files...
-            };
+        var data = new List<AudioData>();
+        
+        // Load cry samples from learning_data/cry folder
+        var cryFolder = Path.Combine("learning_data", "cry");
+        if (Directory.Exists(cryFolder))
+        {
+            var cryFiles = Directory.GetFiles(cryFolder, "*.wav", SearchOption.AllDirectories);
+            data.AddRange(cryFiles.Select(file => new AudioData { FilePath = file, IsCry = true }));
+            Console.WriteLine($"Loaded {cryFiles.Length} cry samples from {cryFolder}");
+        }
+        else
+        {
+            Console.WriteLine($"Warning: Cry folder not found at {cryFolder}");
+        }
+
+        // Load non-cry samples from learning_data/no_cry folder
+        var noCryFolder = Path.Combine("learning_data", "no_cry");
+        if (Directory.Exists(noCryFolder))
+        {
+            var noCryFiles = Directory.GetFiles(noCryFolder, "*.wav", SearchOption.AllDirectories);
+            data.AddRange(noCryFiles.Select(file => new AudioData { FilePath = file, IsCry = false }));
+            Console.WriteLine($"Loaded {noCryFiles.Length} non-cry samples from {noCryFolder}");
+        }
+        else
+        {
+            Console.WriteLine($"Warning: No-cry folder not found at {noCryFolder}");
+            Console.WriteLine("Please create learning_data/no_cry folder and add non-cry audio samples");
+        }
+
+        Console.WriteLine($"Total samples loaded: {data.Count}");
+        return data;
     }
 
     private static List<AudioFeatures> ExtractFeatures(List<AudioData> data)
