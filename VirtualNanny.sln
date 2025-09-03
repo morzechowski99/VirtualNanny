@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VirtualNanny.CryDetection.T
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VirtualNanny.CryDetection.ModelTester", "VirtualNanny.CryDetection.ModelTester\VirtualNanny.CryDetection.ModelTester.csproj", "{4DE6DB07-CAEF-06DC-287F-CAA27C2F710E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VirtualNanny.CryDetection.Core", "VirtualNanny.CryDetection.Core\VirtualNanny.CryDetection.Core.csproj", "{1DD63851-57B5-4F9E-BE70-87679192ADD9}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -69,6 +71,18 @@ Global
 		{4DE6DB07-CAEF-06DC-287F-CAA27C2F710E}.Release|x64.Build.0 = Release|Any CPU
 		{4DE6DB07-CAEF-06DC-287F-CAA27C2F710E}.Release|x86.ActiveCfg = Release|Any CPU
 		{4DE6DB07-CAEF-06DC-287F-CAA27C2F710E}.Release|x86.Build.0 = Release|Any CPU
+		{1DD63851-57B5-4F9E-BE70-87679192ADD9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1DD63851-57B5-4F9E-BE70-87679192ADD9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1DD63851-57B5-4F9E-BE70-87679192ADD9}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{1DD63851-57B5-4F9E-BE70-87679192ADD9}.Debug|x64.Build.0 = Debug|Any CPU
+		{1DD63851-57B5-4F9E-BE70-87679192ADD9}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{1DD63851-57B5-4F9E-BE70-87679192ADD9}.Debug|x86.Build.0 = Debug|Any CPU
+		{1DD63851-57B5-4F9E-BE70-87679192ADD9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1DD63851-57B5-4F9E-BE70-87679192ADD9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1DD63851-57B5-4F9E-BE70-87679192ADD9}.Release|x64.ActiveCfg = Release|Any CPU
+		{1DD63851-57B5-4F9E-BE70-87679192ADD9}.Release|x64.Build.0 = Release|Any CPU
+		{1DD63851-57B5-4F9E-BE70-87679192ADD9}.Release|x86.ActiveCfg = Release|Any CPU
+		{1DD63851-57B5-4F9E-BE70-87679192ADD9}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

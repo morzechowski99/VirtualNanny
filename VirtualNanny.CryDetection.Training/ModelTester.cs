@@ -1,4 +1,5 @@
 using Microsoft.ML;
+using VirtualNanny.CryDetection.Core;
 
 namespace VirtualNanny.CryDetection.Training;
 
