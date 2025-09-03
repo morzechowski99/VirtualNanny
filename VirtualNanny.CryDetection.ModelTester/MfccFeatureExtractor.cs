@@ -22,7 +22,11 @@ public class MfccFeatureExtractor
     {
         using var stream = new FileStream(filePath, FileMode.Open);
         var waveFile = new WaveFile(stream);
-        var samples = waveFile[Channels.Left];
+        
+        // Try to use averaged channels (stereo to mono conversion)
+        // If not available, fall back to left channel
+        var samples = waveFile[Channels.Average];
+        
         var options = new MfccOptions
         {
             SamplingRate = _sampleRate,
