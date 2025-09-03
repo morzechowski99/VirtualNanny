@@ -1,15 +1,16 @@
 using Microsoft.ML;
 using Microsoft.Win32;
-using System.IO;
 using System.Windows;
+using System.IO;
 using System.Windows.Media;
+using VirtualNanny.CryDetection.Core;
 
 namespace VirtualNanny.CryDetection.ModelTester;
 
 public partial class MainWindow : Window
 {
     private readonly PredictionEngine<AudioFeatures, CryPrediction>? _predictionEngine;
-    private readonly MediaPlayer _mediaPlayer = new MediaPlayer();
+    private readonly MediaPlayer _mediaPlayer = new();
 
     public MainWindow()
     {
@@ -40,25 +41,28 @@ public partial class MainWindow : Window
             return;
         }
         var dlg = new OpenFileDialog { Filter = "WAV files (*.wav)|*.wav" };
-        if (dlg.ShowDialog() != true)
-            return;
+        if (dlg.ShowDialog() != true) return;
 
-        // Odtwórz plik dŸwiêkowy
-        _mediaPlayer.Open(new Uri(dlg.FileName));
-        _mediaPlayer.Play();
+        try
+        {
+            // Play the audio file
+            _mediaPlayer.Open(new Uri(dlg.FileName));
+            _mediaPlayer.Play();
 
-        var extractor = new MfccFeatureExtractor();
-        var features = extractor.Extract(dlg.FileName);
+            // Extract features and predict
+            var extractor = new MfccFeatureExtractor();
+            var features = extractor.Extract(dlg.FileName);
 
-        var input = new AudioFeatures { Features = features };
-        var prediction = _predictionEngine.Predict(input);
+            var input = new AudioFeatures { Features = features };
+            var prediction = _predictionEngine.Predict(input);
 
-        ResultText.Text = prediction.IsCry ? "Baby cry detected!" : "No baby cry detected.";
+            ResultText.Text = prediction.IsCry 
+                ? $"Baby cry detected! (Confidence: {prediction.Confidence:P1})" 
+                : $"No baby cry detected. (Confidence: {(1-prediction.Confidence):P1})";
+        }
+        catch (Exception ex)
+        {
+            ResultText.Text = $"Error: {ex.Message}";
+        }
     }
-}
-
-public class CryPrediction
-{
-    [Microsoft.ML.Data.ColumnName("PredictedLabel")]
-    public bool IsCry { get; set; }
 }
