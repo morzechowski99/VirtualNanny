@@ -45,10 +45,6 @@ public partial class MainWindow : Window
 
         try
         {
-            // Play the audio file
-            _mediaPlayer.Open(new Uri(dlg.FileName));
-            _mediaPlayer.Play();
-
             // Extract features and predict
             var extractor = new MfccFeatureExtractor();
             var features = extractor.Extract(dlg.FileName);
@@ -56,9 +52,16 @@ public partial class MainWindow : Window
             var input = new AudioFeatures { Features = features };
             var prediction = _predictionEngine.Predict(input);
 
-            ResultText.Text = prediction.IsCry 
-                ? $"Baby cry detected! (Confidence: {prediction.Confidence:P1})" 
-                : $"No baby cry detected. (Confidence: {(1-prediction.Confidence):P1})";
+            ResultText.Text = prediction.IsCry
+                ? $"Baby cry detected! (Confidence: {prediction.Confidence:P1})"
+                : $"No baby cry detected. (Confidence: {prediction.Confidence:P1})";
+
+
+            // Play the audio file
+            _mediaPlayer.Stop();
+            _mediaPlayer.Close();
+            _mediaPlayer.Open(new Uri(dlg.FileName));
+            _mediaPlayer.Play();
         }
         catch (Exception ex)
         {

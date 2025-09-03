@@ -9,12 +9,12 @@ public class CryPrediction
 {
     [ColumnName("PredictedLabel")]
     public bool IsCry { get; set; }
-    
-    [ColumnName("Score")]
-    public float[] Score { get; set; } = new float[2];
-    
+
+    [ColumnName("Probability")]
+    public float Probability { get; set; }
+
     /// <summary>
     /// Confidence score (0.0 to 1.0) that this is a cry.
     /// </summary>
-    public float Confidence => Score?.Length > 1 ? Score[1] : 0.0f;
+    public float Confidence => IsCry ? Probability : (1.0f - Probability);
 }
