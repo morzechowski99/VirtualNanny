@@ -13,6 +13,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VirtualNanny.CryDetection.M
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VirtualNanny.CryDetection.Core", "VirtualNanny.CryDetection.Core\VirtualNanny.CryDetection.Core.csproj", "{1DD63851-57B5-4F9E-BE70-87679192ADD9}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ModelTrainingAndTesting", "ModelTrainingAndTesting", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "MobileApp", "MobileApp", "{5064A3EC-9879-471A-BF32-AEE1BA175CF6}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -86,6 +90,11 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{8133DDE3-AAC1-49B7-AFC3-793CE424AAE1} = {5064A3EC-9879-471A-BF32-AEE1BA175CF6}
+		{65A3EE85-AC6B-0847-1A29-EF79879765BB} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{4DE6DB07-CAEF-06DC-287F-CAA27C2F710E} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {ECD01948-E19E-406E-AFFD-E1C19C56C640}

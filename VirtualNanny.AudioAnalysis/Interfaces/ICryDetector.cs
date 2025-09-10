@@ -1,6 +1,6 @@
 namespace VirtualNanny.AudioAnalysis.Interfaces;
 
-public interface IAudioAnalyzer
+public interface ICryDetector : IDisposable
 {
     /// <summary>
     /// Analizuje próbkê dŸwiêku i zwraca true, jeœli wykryto p³acz.

@@ -33,6 +33,16 @@ public class MfccFeatureExtractor
         // Use averaged channels (automatic stereo to mono conversion)
         var samples = waveFile[Channels.Average];
         
+        return ExtractFromSamples(samples.Samples);
+    }
+
+    /// <summary>
+    /// Extracts MFCC features directly from audio samples.
+    /// </summary>
+    /// <param name="samples">Audio samples as float array</param>
+    /// <returns>Array of 13 MFCC coefficients representing the audio characteristics</returns>
+    public float[] ExtractFromSamples(float[] samples)
+    {
         var options = new MfccOptions
         {
             SamplingRate = _sampleRate,
