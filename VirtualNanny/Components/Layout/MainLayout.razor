@@ -1,3 +1,58 @@
 ﻿@inherits LayoutComponentBase
 
-@Body
+<MudThemeProvider @ref="@_mudThemeProvider" @bind-IsDarkMode="@_isDarkMode" />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<ErrorBoundary>
+    <ChildContent>
+        <MudLayout>
+            <MudAppBar Elevation="1">
+                <MudIconButton Icon="@Icons.Material.Filled.Menu" 
+                               Color="Color.Inherit" 
+                               Edge="Edge.Start" 
+                               OnClick="@ToggleDrawer" />
+                <MudSpacer />
+                <MudText Typo="Typo.h6">Virtual Nanny</MudText>
+                <MudSpacer />
+                <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)" 
+                               Color="Color.Inherit" 
+                               OnClick="@ToggleDarkMode" />
+            </MudAppBar>
+            
+            <MudDrawer @bind-Open="@_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
+                <MudDrawerHeader>
+                    <MudText Typo="Typo.h6">🍼 Virtual Nanny</MudText>
+                </MudDrawerHeader>
+                <MudNavMenu>
+                    <MudNavLink Href="/" Icon="@Icons.Material.Filled.Home" Match="NavLinkMatch.All">
+                        Główna
+                    </MudNavLink>
+                    <MudNavLink Href="/camera" Icon="@Icons.Material.Filled.Videocam">
+                        Kamera
+                    </MudNavLink>
+                    <MudNavLink Href="/settings" Icon="@Icons.Material.Filled.Settings">
+                        Ustawienia
+                    </MudNavLink>
+                </MudNavMenu>
+            </MudDrawer>
+            
+            <MudMainContent>
+                <MudContainer MaxWidth="MaxWidth.Large" Class="pa-4">
+                    @Body
+                </MudContainer>
+            </MudMainContent>
+        </MudLayout>
+    </ChildContent>
+    <ErrorContent Context="exception">
+        <MudContainer Class="pa-4">
+            <MudAlert Severity="Severity.Error">
+                <MudText Typo="Typo.h6">Wystąpił błąd aplikacji</MudText>
+                <MudText>@exception.Message</MudText>
+                <MudButton OnClick="@(() => StateHasChanged())" Variant="Variant.Filled" Color="Color.Primary" Class="mt-3">
+                    Spróbuj ponownie
+                </MudButton>
+            </MudAlert>
+        </MudContainer>
+    </ErrorContent>
+</ErrorBoundary>

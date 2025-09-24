@@ -1,0 +1,93 @@
+﻿@page "/camera"
+
+<MudContainer Class="pa-4">
+    <MudText Typo="Typo.h4" Align="Align.Center" GutterBottom="true">
+        📹 Monitor dziecka
+    </MudText>
+    
+    @if (!_isPermissionGranted)
+    {
+        <MudPaper Class="pa-6 ma-4" Elevation="2">
+            <div style="text-align: center;">
+                <MudIcon Icon="@Icons.Material.Filled.Videocam" Size="Size.Large" Color="Color.Warning" Class="mb-4" />
+                <MudText Typo="Typo.h6" GutterBottom="true">Dostęp do kamery</MudText>
+                <MudText Typo="Typo.body1" Class="mb-4">
+                    Aplikacja potrzebuje dostępu do kamery, aby monitorować dziecko.
+                </MudText>
+                <MudButton Variant="Variant.Filled" 
+                           Color="Color.Primary" 
+                           StartIcon="@Icons.Material.Filled.VideoCall"
+                           OnClick="RequestCameraPermission"
+                           Size="Size.Large">
+                    Przyznaj dostęp do kamery
+                </MudButton>
+            </div>
+        </MudPaper>
+    }
+    else if (!_isCameraInitialized)
+    {
+        <MudPaper Class="pa-6 ma-4" Elevation="2">
+            <div style="text-align: center;">
+                <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" Class="mb-4" />
+                <MudText Typo="Typo.h6">Inicjalizacja kamery...</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    Proszę czekać, trwa łączenie z kamerą urządzenia.
+                </MudText>
+            </div>
+        </MudPaper>
+    }
+    else
+    {
+        <MudPaper Class="pa-4" Elevation="3">
+            <div style="position: relative; text-align: center;">
+                <video id="cameraVideo" autoplay playsinline muted style="width: 100%; max-width: 640px; border-radius: 8px;"></video>
+                
+                @if (_isRecording)
+                {
+                    <div style="position: absolute; top: 16px; right: 16px; background-color: #f44336; color: white; padding: 8px 12px; border-radius: 4px; font-size: 12px; font-weight: bold;">
+                        🔴 NAGRYWANIE
+                    </div>
+                }
+            </div>
+            
+            <MudStack Row="true" Justify="Justify.Center" Spacing="3" Class="mt-4" Wrap="Wrap.Wrap">
+                <MudButton Variant="Variant.Filled" 
+                           Color="@(_isRecording ? Color.Error : Color.Success)" 
+                           StartIcon="@(_isRecording ? Icons.Material.Filled.Stop : Icons.Material.Filled.FiberManualRecord)"
+                           OnClick="ToggleRecording"
+                           Size="Size.Large">
+                    @(_isRecording ? "Zatrzymaj nagrywanie" : "Rozpocznij nagrywanie")
+                </MudButton>
+                
+                <MudButton Variant="Variant.Outlined" 
+                           Color="Color.Primary" 
+                           StartIcon="@Icons.Material.Filled.FlipCameraAndroid"
+                           OnClick="SwitchCamera"
+                           Size="Size.Large">
+                    Przełącz kamerę
+                </MudButton>
+            </MudStack>
+        </MudPaper>
+        
+        <!-- Camera Settings -->
+        <MudPaper Class="pa-4 mt-4" Elevation="1">
+            <MudText Typo="Typo.h6" GutterBottom="true">Ustawienia kamery</MudText>
+            <MudStack Spacing="3">
+                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                    <MudText>Kamera przednia</MudText>
+                    <MudSwitch @bind-Value="_useFrontCamera" Color="Color.Primary" />
+                </MudStack>
+                
+                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                    <MudText>Tryb nocny</MudText>
+                    <MudSwitch Value="false" Color="Color.Secondary" Disabled="true" />
+                </MudStack>
+                
+                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                    <MudText>Detekcja ruchu</MudText>
+                    <MudSwitch Value="false" Color="Color.Info" Disabled="true" />
+                </MudStack>
+            </MudStack>
+        </MudPaper>
+    }
+</MudContainer>

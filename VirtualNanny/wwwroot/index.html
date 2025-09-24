@@ -5,24 +5,122 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>VirtualNanny</title>
     <base href="/" />
+    
+    <!-- MudBlazor CSS -->
+    <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" rel="stylesheet" />
+    <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
+    
+    <!-- App CSS -->
     <link rel="stylesheet" href="css/app.css" />
     <link rel="stylesheet" href="VirtualNanny.styles.css" />
     <link rel="icon" href="data:,">
 </head>
 
 <body>
-
     <div class="status-bar-safe-area"></div>
 
-    <div id="app">Loading...</div>
+    <div id="app">
+        <div style="display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column;">
+            <div style="margin-bottom: 20px;">
+                <svg width="50" height="50" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="12" cy="12" r="3" stroke="#594ae2" stroke-width="2" fill="none">
+                        <animate attributeName="r" values="3;8;3" dur="1s" repeatCount="indefinite"/>
+                        <animate attributeName="opacity" values="1;0;1" dur="1s" repeatCount="indefinite"/>
+                    </circle>
+                </svg>
+            </div>
+            <div style="color: #594ae2; font-family: Roboto, sans-serif;">Ładowanie VirtualNanny...</div>
+        </div>
+    </div>
 
     <div id="blazor-error-ui">
-        An unhandled error has occurred.
-        <a href="" class="reload">Reload</a>
+        Wystąpił błąd aplikacji.
+        <a href="" class="reload">Przeładuj</a>
         <a class="dismiss">🗙</a>
     </div>
 
+    <!-- MudBlazor JS -->
+    <script src="_content/MudBlazor/MudBlazor.min.js"></script>
     <script src="_framework/blazor.webview.js" autostart="false"></script>
+    
+    <script>
+        let currentStream = null;
+        let mediaRecorder = null;
+        let recordedChunks = [];
+
+        window.initializeCamera = async function (useFrontCamera) {
+            try {
+                // Stop existing stream if any
+                if (currentStream) {
+                    currentStream.getTracks().forEach(track => track.stop());
+                }
+
+                const constraints = {
+                    video: {
+                        facingMode: useFrontCamera ? 'user' : 'environment'
+                    },
+                    audio: true
+                };
+
+                currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+                const video = document.getElementById('cameraVideo');
+                if (video) {
+                    video.srcObject = currentStream;
+                }
+
+                return true;
+            } catch (error) {
+                console.error('Error accessing camera:', error);
+                return false;
+            }
+        };
+
+        window.switchCamera = async function (useFrontCamera) {
+            await window.initializeCamera(useFrontCamera);
+        };
+
+        window.toggleRecording = async function (startRecording) {
+            try {
+                if (startRecording) {
+                    recordedChunks = [];
+                    mediaRecorder = new MediaRecorder(currentStream);
+                    
+                    mediaRecorder.ondataavailable = function (event) {
+                        if (event.data.size > 0) {
+                            recordedChunks.push(event.data);
+                        }
+                    };
+
+                    mediaRecorder.onstop = function () {
+                        const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                        const url = URL.createObjectURL(blob);
+                        
+                        // Auto-download the recording
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `recording_${new Date().toISOString()}.webm`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                    };
+
+                    mediaRecorder.start();
+                } else {
+                    if (mediaRecorder && mediaRecorder.state === 'recording') {
+                        mediaRecorder.stop();
+                    }
+                }
+            } catch (error) {
+                console.error('Error with recording:', error);
+            }
+        };
+
+        // Cleanup function
+        window.addEventListener('beforeunload', function () {
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+            }
+        });
+    </script>
 
 </body>
 

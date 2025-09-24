@@ -1,0 +1,70 @@
+@page "/settings"
+
+<MudContainer Class="pa-4">
+    <MudText Typo="Typo.h4" GutterBottom="true">?? Ustawienia</MudText>
+    
+    <MudGrid>
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.h6" GutterBottom="true">Powiadomienia</MudText>
+                
+                <MudStack Spacing="3">
+                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                        <MudText>Detekcja p³aczu</MudText>
+                        <MudSwitch Value="true" Color="Color.Primary" />
+                    </MudStack>
+                    
+                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                        <MudText>Detekcja ruchu</MudText>
+                        <MudSwitch Value="false" Color="Color.Secondary" />
+                    </MudStack>
+                    
+                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                        <MudText>Powiadomienia push</MudText>
+                        <MudSwitch Value="true" Color="Color.Info" />
+                    </MudStack>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+        
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.h6" GutterBottom="true">Audio</MudText>
+                
+                <MudStack Spacing="3">
+                    <MudText Typo="Typo.body2">Czu³oœæ mikrofonu</MudText>
+                    <MudSlider Value="75" Min="0" Max="100" Step="5" Color="Color.Primary" />
+                    
+                    <MudText Typo="Typo.body2">Próg detekcji p³aczu</MudText>
+                    <MudSlider Value="60" Min="0" Max="100" Step="10" Color="Color.Secondary" />
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+        
+        <MudItem xs="12">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.h6" GutterBottom="true">Informacje o aplikacji</MudText>
+                
+                <MudStack Spacing="2">
+                    <MudStack Row="true" Justify="Justify.SpaceBetween">
+                        <MudText>Wersja aplikacji</MudText>
+                        <MudText Color="Color.Secondary">1.0.0</MudText>
+                    </MudStack>
+                    
+                    <MudStack Row="true" Justify="Justify.SpaceBetween">
+                        <MudText>Ostatnia aktualizacja</MudText>
+                        <MudText Color="Color.Secondary">2024-01-15</MudText>
+                    </MudStack>
+                    
+                    <MudDivider Class="my-3" />
+                    
+                    <MudButton Variant="Variant.Outlined" 
+                               StartIcon="@Icons.Material.Filled.Info"
+                               Color="Color.Primary">
+                        O aplikacji
+                    </MudButton>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+</MudContainer>

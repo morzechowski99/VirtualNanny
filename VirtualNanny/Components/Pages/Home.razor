@@ -1,5 +1,93 @@
 ﻿@page "/"
 
-<h1>Hello, world!</h1>
-
-Welcome to your new app.
+<MudContainer Class="pa-6">
+    <MudText Typo="Typo.h3" Align="Align.Center" GutterBottom="true">
+        🍼 Virtual Nanny
+    </MudText>
+    <MudText Typo="Typo.h6" Align="Align.Center" Color="Color.Secondary" Class="mb-8">
+        Inteligentny monitor dziecka z detekcją płaczu
+    </MudText>
+    
+    <MudGrid>
+        <MudItem xs="12" sm="6" md="4">
+            <MudCard Elevation="2" Class="pa-4">
+                <MudCardContent>
+                    <div style="text-align: center;">
+                        <MudIcon Icon="@Icons.Material.Filled.Videocam" Size="Size.Large" Color="Color.Primary" Class="mb-3" />
+                        <MudText Typo="Typo.h6" GutterBottom="true">Monitor z kamery</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+                            Obserwuj dziecko w czasie rzeczywistym
+                        </MudText>
+                        <MudButton Variant="Variant.Filled" 
+                                   Color="Color.Primary" 
+                                   StartIcon="@Icons.Material.Filled.Videocam"
+                                   Href="/camera"
+                                   FullWidth="true">
+                            Otwórz kamerę
+                        </MudButton>
+                    </div>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+        
+        <MudItem xs="12" sm="6" md="4">
+            <MudCard Elevation="2" Class="pa-4">
+                <MudCardContent>
+                    <div style="text-align: center;">
+                        <MudIcon Icon="@Icons.Material.Filled.RecordVoiceOver" Size="Size.Large" Color="Color.Secondary" Class="mb-3" />
+                        <MudText Typo="Typo.h6" GutterBottom="true">Detekcja płaczu</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+                            Automatyczne wykrywanie płaczu dziecka
+                        </MudText>
+                        <MudButton Variant="Variant.Outlined" 
+                                   Color="Color.Secondary" 
+                                   StartIcon="@Icons.Material.Filled.Construction"
+                                   Disabled="true"
+                                   FullWidth="true">
+                            Wkrótce
+                        </MudButton>
+                    </div>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+        
+        <MudItem xs="12" sm="6" md="4">
+            <MudCard Elevation="2" Class="pa-4">
+                <MudCardContent>
+                    <div style="text-align: center;">
+                        <MudIcon Icon="@Icons.Material.Filled.Analytics" Size="Size.Large" Color="Color.Tertiary" Class="mb-3" />
+                        <MudText Typo="Typo.h6" GutterBottom="true">Analityka</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+                            Raporty i statystyki snu
+                        </MudText>
+                        <MudButton Variant="Variant.Outlined" 
+                                   Color="Color.Secondary" 
+                                   StartIcon="@Icons.Material.Filled.Construction"
+                                   Disabled="true"
+                                   FullWidth="true">
+                            Wkrótce
+                        </MudButton>
+                    </div>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+    
+    <!-- Quick Actions -->
+    <MudPaper Class="pa-4 mt-6" Elevation="1">
+        <MudText Typo="Typo.h6" GutterBottom="true">Status systemu</MudText>
+        <MudStack Row="true" Spacing="3" Wrap="Wrap.Wrap">
+            <MudAlert Severity="Severity.Success" NoIcon="false" Dense="true">
+                <MudIcon Icon="@Icons.Material.Filled.Notifications" /> Powiadomienia: ON
+            </MudAlert>
+            
+            <MudAlert Severity="Severity.Info" NoIcon="false" Dense="true">
+                <MudIcon Icon="@Icons.Material.Filled.DarkMode" /> Tryb nocny: AUTO
+            </MudAlert>
+            
+            <MudAlert Severity="Severity.Normal" NoIcon="false" Dense="true">
+                <MudIcon Icon="@Icons.Material.Filled.VolumeUp" /> Audio: ACTIVE
+            </MudAlert>
+        </MudStack>
+    </MudPaper>
+</MudContainer>
