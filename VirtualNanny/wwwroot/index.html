@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pl">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
@@ -36,7 +36,7 @@
     <div id="blazor-error-ui">
         Wystąpił błąd aplikacji.
         <a href="" class="reload">Przeładuj</a>
-        <a class="dismiss">🗙</a>
+        <a class="dismiss">Zamknij</a>
     </div>
 
     <!-- MudBlazor JS -->
@@ -47,81 +47,1476 @@
         let currentStream = null;
         let mediaRecorder = null;
         let recordedChunks = [];
+        let isInitializing = false;
+        let currentCameraType = null; // Track which camera is currently active
+        let _androidClonedTracks = []; // store cloned tracks used for Android recording
 
-        window.initializeCamera = async function (useFrontCamera) {
+        // Debug function - enhanced for Android
+        window.debugLog = function(message) {
+            console.log('[VirtualNanny Camera]', message);
+            
+            // On Android, also show critical errors as alerts
+            if (typeof Android !== 'undefined' || navigator.userAgent.includes('Android')) {
+                if (message.includes('error') || message.includes('Error') || message.includes('denied')) {
+                    // Store recent logs for Android debugging
+                    if (!window.androidDebugLogs) {
+                        window.androidDebugLogs = [];
+                    }
+                    window.androidDebugLogs.push(new Date().toLocaleTimeString() + ': ' + message);
+                    
+                    // Keep only last 10 logs
+                    if (window.androidDebugLogs.length > 10) {
+                        window.androidDebugLogs = window.androidDebugLogs.slice(-10);
+                    }
+                }
+            }
+        };
+        
+        // Function to show debug info on Android
+        window.showAndroidDebug = function() {
+            if (window.androidDebugLogs && window.androidDebugLogs.length > 0) {
+                alert('Android Debug Logs:\n' + window.androidDebugLogs.join('\n'));
+            } else {
+                alert('No debug logs available');
+            }
+        };
+
+        // Check and request microphone permission
+        window.checkMicrophonePermission = async function() {
             try {
-                // Stop existing stream if any
-                if (currentStream) {
-                    currentStream.getTracks().forEach(track => track.stop());
+                if (navigator.permissions) {
+                    const result = await navigator.permissions.query({name: 'microphone'});
+                    window.debugLog('Microphone permission check result: ' + result.state);
+                    
+                    if (result.state === 'denied') {
+                        return false;
+                    }
                 }
-
-                const constraints = {
-                    video: {
-                        facingMode: useFrontCamera ? 'user' : 'environment'
-                    },
-                    audio: true
-                };
-
-                currentStream = await navigator.mediaDevices.getUserMedia(constraints);
-                const video = document.getElementById('cameraVideo');
-                if (video) {
-                    video.srcObject = currentStream;
-                }
-
+                
+                // Try to get microphone access
+                const testStream = await navigator.mediaDevices.getUserMedia({audio: true});
+                testStream.getTracks().forEach(track => track.stop()); // Clean up
                 return true;
             } catch (error) {
-                console.error('Error accessing camera:', error);
+                window.debugLog('Microphone permission error: ' + error.message);
                 return false;
             }
         };
 
-        window.switchCamera = async function (useFrontCamera) {
-            await window.initializeCamera(useFrontCamera);
+        // Force permission request for Android WebView
+        window.forcePermissionRequest = async function() {
+            try {
+                window.debugLog('Forcing permission request...');
+                
+                // Try to request permissions explicitly
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: true,
+                    audio: false // Start with video only
+                });
+                
+                window.debugLog('Permission granted! Got stream with tracks: ' + stream.getTracks().length);
+                
+                // Stop the test stream
+                stream.getTracks().forEach(track => track.stop());
+                
+                return true;
+            } catch (error) {
+                window.debugLog('Permission request failed: ' + error.message);
+                return false;
+            }
         };
 
+        // Enhanced permission testing for Android WebView
+        window.testAllPermissionMethods = async function() {
+            const results = [];
+            
+            // Method 1: Direct getUserMedia
+            try {
+                window.debugLog('Testing Method 1: Direct getUserMedia...');
+                const stream1 = await navigator.mediaDevices.getUserMedia({ video: true });
+                stream1.getTracks().forEach(track => track.stop());
+                results.push('Method 1: Direct getUserMedia - SUCCESS');
+                return true;
+            } catch (error) {
+                results.push('Method 1: Direct getUserMedia - FAILED: ' + error.message);
+            }
+            
+            // Method 2: Enumerate devices first
+            try {
+                window.debugLog('Testing Method 2: Enumerate devices first...');
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices.filter(d => d.kind === 'videoinput');
+                if (videoDevices.length > 0) {
+                    const stream2 = await navigator.mediaDevices.getUserMedia({ 
+                        video: { deviceId: videoDevices[0].deviceId } 
+                    });
+                    stream2.getTracks().forEach(track => track.stop());
+                    results.push('Method 2: Enumerate devices - SUCCESS');
+                    return true;
+                } else {
+                    results.push('Method 2: Enumerate devices - NO VIDEO DEVICES FOUND');
+                }
+            } catch (error) {
+                results.push('Method 2: Enumerate devices - FAILED: ' + error.message);
+            }
+            
+            // Method 3: Minimal constraints
+            try {
+                window.debugLog('Testing Method 3: Minimal constraints...');
+                const stream3 = await navigator.mediaDevices.getUserMedia({ 
+                    video: { width: 320, height: 240 } 
+                });
+                stream3.getTracks().forEach(track => track.stop());
+                results.push('Method 3: Minimal constraints - SUCCESS');
+                return true;
+            } catch (error) {
+                results.push('Method 3: Minimal constraints - FAILED: ' + error.message);
+            }
+            
+            // Show all results
+            alert('Permission Test Results:\n\n' + results.join('\n'));
+            return false;
+        };
+
+        // Try to trigger WebView permission dialog through user interaction
+        window.triggerWebViewPermissions = async function() {
+            window.debugLog('Triggering WebView permission dialog...');
+            
+            // Create a user-initiated event
+            const userEvent = new Event('click', { bubbles: true });
+            document.dispatchEvent(userEvent);
+            
+            // Try to access camera in response to user gesture
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: true,
+                    audio: false
+                });
+                
+                window.debugLog('WebView permissions granted! Stream tracks: ' + stream.getTracks().length);
+                
+                // Keep the stream active for the camera
+                if (currentStream) {
+                    currentStream.getTracks().forEach(track => track.stop());
+                }
+                currentStream = stream;
+                
+                return true;
+            } catch (error) {
+                window.debugLog('WebView permission failed: ' + error.message);
+                return false;
+            }
+        };
+
+        // MAIN CAMERA INITIALIZATION FUNCTION
+        window.initializeCamera = async function (useFrontCamera) {
+            if (isInitializing) {
+                window.debugLog('Camera already initializing, skipping...');
+                return false;
+            }
+
+            isInitializing = true;
+            window.debugLog('Starting camera initialization, front camera: ' + useFrontCamera);
+
+            try {
+                // Stop existing stream if any
+                if (currentStream) {
+                    window.debugLog('Stopping existing stream');
+                    currentStream.getTracks().forEach(track => {
+                        track.stop();
+                        window.debugLog('Stopped track: ' + track.kind);
+                    });
+                    currentStream = null;
+                }
+
+                // Check if getUserMedia is available
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    throw new Error('getUserMedia not supported on this device');
+                }
+
+                // Wait for video element
+                let retryCount = 0;
+                let video = null;
+                
+                while (retryCount < 15) {
+                    video = document.getElementById('cameraVideo');
+                    if (video) {
+                        window.debugLog(`Video element found on attempt ${retryCount + 1}`);
+                        break;
+                    }
+                    
+                    window.debugLog(`Waiting for video element... attempt ${retryCount + 1}/15`);
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                    retryCount++;
+                }
+
+                if (!video) {
+                    const videos = document.querySelectorAll('video');
+                    if (videos.length > 0) {
+                        video = videos[0];
+                        window.debugLog('Using first video element found by tagName');
+                    } else {
+                        throw new Error('Video element not found after 15 attempts and no video elements exist');
+                    }
+                }
+
+                window.debugLog('Video element found: ' + video.tagName + ', id: ' + video.id);
+
+                // Clear any existing src
+                video.srcObject = null;
+                video.src = '';
+                video.load();
+
+                // Get available cameras first
+                let availableDevices = [];
+                try {
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    availableDevices = devices.filter(device => device.kind === 'videoinput');
+                    window.debugLog('Found ' + availableDevices.length + ' video input devices');
+                    availableDevices.forEach((device, index) => {
+                        window.debugLog(`Device ${index}: ${device.label || 'Unknown camera'} (${device.deviceId.substring(0, 8)}...)`);
+                    });
+                } catch (deviceError) {
+                    window.debugLog('Error enumerating devices: ' + deviceError.message);
+                }
+
+                // Build constraints with proper camera selection - start with video only, try audio separately
+                let constraints;
+                
+                if (availableDevices.length > 1) {
+                    // If we have multiple cameras, try to use device-specific approach
+                    let targetDevice = null;
+                    
+                    if (useFrontCamera) {
+                        // Look for front camera (usually has "front" in label or is the second device)
+                        targetDevice = availableDevices.find(device => 
+                            device.label.toLowerCase().includes('front') || 
+                            device.label.toLowerCase().includes('user') ||
+                            device.label.toLowerCase().includes('face')
+                        );
+                        
+                        // Fallback: use second device if no front camera found by label
+                        if (!targetDevice && availableDevices.length > 1) {
+                            targetDevice = availableDevices[1];
+                        }
+                    } else {
+                        // Look for back camera (usually has "back", "rear" in label or is the first device)
+                        targetDevice = availableDevices.find(device => 
+                            device.label.toLowerCase().includes('back') || 
+                            device.label.toLowerCase().includes('rear') ||
+                            device.label.toLowerCase().includes('environment')
+                        );
+                        
+                        // Fallback: use first device if no back camera found by label
+                        if (!targetDevice) {
+                            targetDevice = availableDevices[0];
+                        }
+                    }
+                    
+                    if (targetDevice) {
+                        window.debugLog(`Using specific device: ${targetDevice.label || 'Unknown'} (${targetDevice.deviceId.substring(0, 8)}...)`);
+                        constraints = {
+                            video: {
+                                deviceId: { exact: targetDevice.deviceId },
+                                width: { ideal: 640, max: 1280 },
+                                height: { ideal: 480, max: 720 }
+                            }
+                            // Don't include audio in initial constraints
+                        };
+                    } else {
+                        window.debugLog('No specific device found, using facingMode');
+                        constraints = {
+                            video: {
+                                facingMode: useFrontCamera ? 'user' : 'environment',
+                                width: { ideal: 640, max: 1280 },
+                                height: { ideal: 480, max: 720 }
+                            }
+                            // Don't include audio in initial constraints
+                        };
+                    }
+                } else {
+                    // Single camera or fallback - use facingMode
+                    window.debugLog('Using facingMode approach (single camera or fallback)');
+                    constraints = {
+                        video: {
+                            facingMode: useFrontCamera ? 'user' : 'environment',
+                            width: { ideal: 640, max: 1280 },
+                            height: { ideal: 480, max: 720 }
+                        }
+                        // Don't include audio in initial constraints
+                    };
+                }
+
+                window.debugLog('Requesting camera stream with video-only constraints:', JSON.stringify(constraints));
+
+                try {
+                    currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+                    window.debugLog('Video stream obtained successfully');
+                    
+                    // Now try to add audio track if microphone is available
+                    try {
+                        window.debugLog('Attempting to add audio track...');
+                        const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                        const audioTrack = audioStream.getAudioTracks()[0];
+                        
+                        if (audioTrack) {
+                            // Add audio track to the existing stream for playback/recording without stopping video preview
+                            try {
+                                currentStream.addTrack(audioTrack);
+                                window.debugLog('Added audio track to current stream');
+                            } catch (addErr) {
+                                window.debugLog('Failed to add audio track to current stream: ' + addErr.message);
+                            }
+                        }
+                    } catch (audioError) {
+                        window.debugLog('Could not add audio track: ' + audioError.message + ' - continuing with video only');
+                        // Continue with video-only stream
+                    }
+                    
+                } catch (constraintError) {
+                    window.debugLog('Video constraints failed: ' + constraintError.message);
+                    
+                    // If permission denied, try enhanced permission request
+                    if (constraintError.message.includes('Permission denied') || 
+                        constraintError.message.includes('denied') ||
+                        constraintError.name === 'NotAllowedError') {
+                        
+                        window.debugLog('Permission denied - trying enhanced permission request...');
+                        const enhancedResult = await window.enhancedPermissionRequest();
+                        
+                        if (enhancedResult) {
+                            window.debugLog('Enhanced permissions granted, retrying camera...');
+                            
+                            // Wait a moment and try again
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                            
+                            try {
+                                currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+                                window.debugLog('Camera stream obtained after enhanced permissions!');
+                            } catch (retryError) {
+                                window.debugLog('Camera still failed after enhanced permissions: ' + retryError.message);
+                                throw retryError;
+                            }
+                        } else {
+                            window.debugLog('Enhanced permissions failed, proceeding with fallbacks...');
+                            throw constraintError;
+                        }
+                    } else {
+                        // For non-permission errors, proceed with normal fallbacks
+                        throw constraintError;
+                    }
+                }
+                
+                // If we still don't have a stream, try basic fallbacks
+                if (!currentStream) {
+                    window.debugLog('No stream obtained, trying basic fallbacks...');
+                    
+                    // Basic fallback constraints
+                    const fallbackConstraints = [
+                        { video: { facingMode: useFrontCamera ? 'user' : 'environment' } },
+                        { video: true }
+                    ];
+                    
+                    for (let i = 0; i < fallbackConstraints.length; i++) {
+                        try {
+                            window.debugLog(`Trying fallback constraint ${i + 1}: ${JSON.stringify(fallbackConstraints[i])}`);
+                            currentStream = await navigator.mediaDevices.getUserMedia(fallbackConstraints[i]);
+                            window.debugLog(`Fallback ${i + 1} successful`);
+                            break;
+                        } catch (fallbackError) {
+                            window.debugLog(`Fallback ${i + 1} failed: ${fallbackError.message}`);
+                        }
+                    }
+                }
+
+                if (!currentStream) {
+                    throw new Error('No stream received');
+                }
+
+                window.debugLog('Stream received, tracks: ' + currentStream.getTracks().length);
+                currentStream.getTracks().forEach((track, index) => {
+                    window.debugLog(`Track ${index}: ${track.kind}, enabled: ${track.enabled}, readyState: ${track.readyState}`);
+                    
+                    // Log camera info if available
+                    if (track.kind === 'video') {
+                        const settings = track.getSettings();
+                        window.debugLog(`Video track settings: ${JSON.stringify(settings)}`);
+                        
+                        if (settings.facingMode) {
+                            window.debugLog(`Camera facing mode: ${settings.facingMode}`);
+                            currentCameraType = settings.facingMode;
+                        }
+                        if (settings.deviceId) {
+                            window.debugLog(`Camera device ID: ${settings.deviceId.substring(0, 8)}...`);
+                        }
+                    } else if (track.kind === 'audio') {
+                        const settings = track.getSettings();
+                        window.debugLog(`Audio track settings: ${JSON.stringify(settings)}`);
+                    }
+                });
+
+                // Set video source
+                video.srcObject = currentStream;
+                window.debugLog('Video srcObject set');
+                
+                // Wait for video to load
+                return new Promise((resolve, reject) => {
+                    const timeoutId = setTimeout(() => {
+                        window.debugLog('Video load timeout');
+                        isInitializing = false;
+                        reject(new Error('Video load timeout'));
+                    }, 20000);
+
+                    video.onloadedmetadata = () => {
+                        clearTimeout(timeoutId);
+                        window.debugLog('Video metadata loaded, dimensions: ' + video.videoWidth + 'x' + video.videoHeight);
+                        
+                        video.play().then(() => {
+                            window.debugLog('Video playing successfully');
+                            isInitializing = false;
+                            resolve(true);
+                        }).catch(playError => {
+                            window.debugLog('Video play error: ' + playError.message);
+                            isInitializing = false;
+                            reject(playError);
+                        });
+                    };
+
+                    video.onerror = (error) => {
+                        clearTimeout(timeoutId);
+                        window.debugLog('Video error: ' + error);
+                        isInitializing = false;
+                        reject(new Error('Video load error'));
+                    };
+
+                    // Also try to play immediately in case metadata is already loaded
+                    if (video.readyState >= 1) {
+                        window.debugLog('Video already has metadata, triggering onloadedmetadata');
+                        video.onloadedmetadata();
+                    }
+                });
+
+            } catch (error) {
+                window.debugLog('Camera initialization error: ' + error.message + ', stack: ' + error.stack);
+                isInitializing = false;
+                throw error;
+            }
+        };
+
+        // IMPROVED SWITCH CAMERA FUNCTION
+        window.switchCamera = async function (useFrontCamera) {
+            window.debugLog(`Switching camera, front camera: ${useFrontCamera}, current: ${currentCameraType}`);
+            
+            // Prevent switching if already in the process
+            if (isInitializing) {
+                window.debugLog('Camera is initializing, cannot switch now');
+                return false;
+            }
+            
+            try {
+                // Check if we actually need to switch
+                const targetFacingMode = useFrontCamera ? 'user' : 'environment';
+                if (currentCameraType === targetFacingMode) {
+                    window.debugLog(`Already using ${targetFacingMode} camera, no switch needed`);
+                    return true;
+                }
+                
+                // Use the main initialization function for switching
+                const result = await window.initializeCamera(useFrontCamera);
+                window.debugLog('Camera switch result: ' + result);
+                
+                if (result) {
+                    const cameraTypeText = useFrontCamera ? 'front' : 'back';
+                    window.debugLog(`Successfully switched to ${cameraTypeText} camera`);
+                } else {
+                    window.debugLog('Failed to switch camera');
+                }
+                
+                return result;
+            } catch (error) {
+                window.debugLog('Camera switch error: ' + error.message);
+                return false;
+            }
+        };
+
+        // Enhanced recording function with Android-specific fixes for black screen issue
         window.toggleRecording = async function (startRecording) {
+            window.debugLog('Toggle recording: ' + startRecording);
+            
             try {
                 if (startRecording) {
+                    if (!currentStream) {
+                        throw new Error('No camera stream available for recording');
+                    }
+
                     recordedChunks = [];
-                    mediaRecorder = new MediaRecorder(currentStream);
+                    _androidClonedTracks = [];
+                    
+                    // Check MediaRecorder support
+                    if (!window.MediaRecorder) {
+                        throw new Error('MediaRecorder not supported on this device');
+                    }
+
+                    // Get the video element to check if it's actually playing
+                    const video = document.getElementById('cameraVideo');
+                    if (!video || video.videoWidth === 0 || video.videoHeight === 0) {
+                        window.debugLog('Warning: Video element not ready or has no dimensions');
+                    } else {
+                        window.debugLog(`Video element dimensions: ${video.videoWidth}x${video.videoHeight}`);
+                    }
+
+                    // For Android, prefer cloning the existing video track instead of requesting a fresh getUserMedia stream.
+                    // Cloning keeps the preview attached to the original stream while giving MediaRecorder a separate track.
+                    let recordingStream = currentStream;
+                    
+                    // Check if this is Android
+                    const isAndroid = typeof Android !== 'undefined' || navigator.userAgent.includes('Android');
+                    
+                    if (isAndroid) {
+                        window.debugLog('Android detected - cloning video track for recording to avoid preview black screen');
+                        try {
+                            const videoTrack = currentStream.getVideoTracks()[0];
+                            if (videoTrack) {
+                                // Clone the video track so preview stays on original track
+                                const clonedVideoTrack = videoTrack.clone();
+                                _androidClonedTracks.push(clonedVideoTrack);
+
+                                // Attempt to add audio track clone if audio exists, otherwise try to get audio separately
+                                const audioTracks = currentStream.getAudioTracks();
+                                let clonedAudioTrack = null;
+                                if (audioTracks.length > 0) {
+                                    clonedAudioTrack = audioTracks[0].clone();
+                                    _androidClonedTracks.push(clonedAudioTrack);
+                                } else {
+                                    try {
+                                        const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                                        if (audioStream && audioStream.getAudioTracks().length > 0) {
+                                            clonedAudioTrack = audioStream.getAudioTracks()[0];
+                                            // We will stop this audioTrack after recording
+                                            _androidClonedTracks.push(clonedAudioTrack);
+                                        }
+                                    } catch (audioErr) {
+                                        window.debugLog('Could not obtain audio for cloning: ' + audioErr.message + ' - recording video only');
+                                    }
+                                }
+
+                                // Build a recording-only stream with cloned tracks
+                                const tracks = [];
+                                if (clonedVideoTrack) tracks.push(clonedVideoTrack);
+                                if (clonedAudioTrack) tracks.push(clonedAudioTrack);
+
+                                if (tracks.length > 0) {
+                                    recordingStream = new MediaStream(tracks);
+                                    window.debugLog('Created recording stream with cloned tracks: ' + tracks.length);
+                                } else {
+                                    // Fallback to original stream if cloning failed
+                                    recordingStream = currentStream;
+                                    window.debugLog('Cloning failed, falling back to original stream');
+                                }
+                            } else {
+                                window.debugLog('No video track available to clone - falling back to original stream');
+                                recordingStream = currentStream;
+                            }
+                        } catch (freshStreamError) {
+                            window.debugLog('Error during cloning for Android recording: ' + freshStreamError.message);
+                            recordingStream = currentStream;
+                        }
+                    } else {
+                        // For non-Android platforms, try to add audio if not present
+                        const videoTracks = currentStream.getVideoTracks();
+                        const audioTracks = currentStream.getAudioTracks();
+                        
+                        window.debugLog(`Current stream has ${videoTracks.length} video tracks and ${audioTracks.length} audio tracks`);
+
+                        if (audioTracks.length === 0) {
+                            try {
+                                window.debugLog('Attempting to add audio track for recording...');
+                                const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                                const audioTrack = audioStream.getAudioTracks()[0];
+                                
+
+                                if (audioTrack) {
+                                    // Create a new MediaStream with both video and audio
+                                    recordingStream = new MediaStream([
+                                        ...videoTracks,
+                                        audioTrack
+                                    ]);
+                                    window.debugLog('Successfully added audio track for recording');
+                                }
+                            } catch (audioError) {
+                                window.debugLog('Could not get audio track: ' + audioError.message + ' - recording video only');
+                                recordingStream = currentStream; // Use original stream (video only)
+                            }
+                        }
+                    }
+
+                    // Android-specific MediaRecorder options
+                    let recorderOptions = {};
+                    
+                    if (isAndroid) {
+                        // For Android, prefer MP4 format which generally works better
+                        const androidMimeTypes = [
+                            'video/mp4',
+                            'video/mp4;codecs=h264',
+                            'video/webm;codecs=vp8',
+                            'video/webm'
+                        ];
+                        
+                        for (const mimeType of androidMimeTypes) {
+                            if (MediaRecorder.isTypeSupported(mimeType)) {
+                                recorderOptions = { 
+                                    mimeType: mimeType,
+                                    videoBitsPerSecond: 2500000 // 2.5Mbps for good quality
+                                };
+                                window.debugLog('Android: Using MIME type: ' + mimeType);
+                                break;
+                            }
+                        }
+                    } else {
+                        // For other platforms, use the original logic
+                        const supportedMimeTypes = [
+                            'video/webm;codecs=vp9,opus',
+                            'video/webm;codecs=vp8,opus', 
+                            'video/webm;codecs=h264,opus',
+                            'video/webm;codecs=vp9',
+                            'video/webm;codecs=vp8',
+                            'video/webm',
+                            'video/mp4;codecs=h264,aac',
+                            'video/mp4'
+                        ];
+
+                        for (const mimeType of supportedMimeTypes) {
+                            if (MediaRecorder.isTypeSupported(mimeType)) {
+                                recorderOptions = { mimeType: mimeType };
+                                window.debugLog('Using MIME type: ' + mimeType);
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!recorderOptions.mimeType) {
+                        window.debugLog('No supported MIME type found, using default');
+                        recorderOptions = {};
+                    }
+
+                    mediaRecorder = new MediaRecorder(recordingStream, recorderOptions);
                     
                     mediaRecorder.ondataavailable = function (event) {
-                        if (event.data.size > 0) {
+                        if (event.data && event.data.size > 0) {
                             recordedChunks.push(event.data);
+                            window.debugLog('Recorded chunk: ' + event.data.size + ' bytes, total chunks: ' + recordedChunks.length);
                         }
                     };
 
-                    mediaRecorder.onstop = function () {
-                        const blob = new Blob(recordedChunks, { type: 'video/webm' });
-                        const url = URL.createObjectURL(blob);
-                        
-                        // Auto-download the recording
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = `recording_${new Date().toISOString()}.webm`;
-                        a.click();
-                        URL.revokeObjectURL(url);
+                    mediaRecorder.onstart = function () {
+                        window.debugLog('Recording started successfully');
                     };
 
-                    mediaRecorder.start();
+                    mediaRecorder.onstop = function () {
+                        window.debugLog('Recording stopped, total chunks: ' + recordedChunks.length);
+                        
+                        // Stop and remove cloned tracks for Android if created
+                        try {
+                            if (isAndroid && _androidClonedTracks && _androidClonedTracks.length > 0) {
+                                window.debugLog('Stopping cloned Android tracks');
+                                _androidClonedTracks.forEach(t => {
+                                    try { t.stop(); } catch (e) { /* ignore */ }
+                                });
+                                _androidClonedTracks = [];
+                            }
+                        } catch (e) {
+                            window.debugLog('Error stopping cloned tracks: ' + e.message);
+                        }
+
+                        if (recordedChunks.length > 0) {
+                            const totalSize = recordedChunks.reduce((sum, chunk) => sum + chunk.size, 0);
+                            window.debugLog('Total recording size: ' + totalSize + ' bytes');
+                            
+                            // Determine the MIME type for the blob
+                            let blobMimeType = 'video/webm';
+                            if (recorderOptions && recorderOptions.mimeType) {
+                                blobMimeType = recorderOptions.mimeType.split(';')[0]; // Remove codecs part
+                            }
+                            
+                            const blob = new Blob(recordedChunks, { type: blobMimeType });
+                            window.debugLog('Created blob with type: ' + blobMimeType + ', size: ' + blob.size + ' bytes');
+                            
+                            // Generate filename with proper extension
+                            const extension = blobMimeType.includes('mp4') ? 'mp4' : 'webm';
+                            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
+                            const filename = `virtualnanny_recording_${timestamp}.${extension}`;
+                            
+                            // Platform-specific saving
+                            if (isAndroid) {
+                                window.debugLog('Android detected - using Android-specific file saving');
+                                window.saveFileOnAndroid(blob, filename, blobMimeType);
+                            } else {
+                                window.debugLog('Non-Android platform - using standard web download');
+                                window.downloadFileStandard(blob, filename);
+                            }
+                        } else {
+                            window.debugLog('No chunks recorded!');
+                        }
+                    };
+
+                    mediaRecorder.onerror = function (error) {
+                        window.debugLog('MediaRecorder error: ' + (error.error || error));
+                    };
+
+                    mediaRecorder.onpause = function () {
+                        window.debugLog('Recording paused');
+                    };
+
+                    mediaRecorder.onresume = function () {
+                        window.debugLog('Recording resumed');
+                    };
+
+                    // Start recording with different intervals for Android vs others
+                    const dataInterval = isAndroid ? 500 : 1000; // More frequent data collection on Android
+                    mediaRecorder.start(dataInterval);
+                    window.debugLog('MediaRecorder.start() called with ' + dataInterval + 'ms interval');
+                    
                 } else {
-                    if (mediaRecorder && mediaRecorder.state === 'recording') {
-                        mediaRecorder.stop();
+                    // Stop recording
+                    if (mediaRecorder) {
+                        window.debugLog('Stopping MediaRecorder, current state: ' + mediaRecorder.state);
+                        
+                        if (mediaRecorder.state === 'recording') {
+                            mediaRecorder.stop();
+                            window.debugLog('MediaRecorder.stop() called');
+                        } else {
+                            window.debugLog('MediaRecorder was not in recording state');
+                        }
+                    } else {
+                        window.debugLog('No MediaRecorder instance found');
+                    }
+                }
+                
+                return true;
+            } catch (error) {
+                window.debugLog('Recording toggle error: ' + error.message);
+                throw error;
+            }
+        };
+
+        // Add native file saving function for C# integration
+        window.saveFileNatively = async function(base64Data, filename, mimeType) {
+            try {
+                window.debugLog('Attempting native file save: ' + filename);
+                
+                // Call the C# method through DotNet
+                const result = await DotNet.invokeMethodAsync('VirtualNanny', 'SaveFileFromJavaScript', base64Data, filename, mimeType);
+                
+                window.debugLog('Native file save result: ' + result);
+                return result;
+            } catch (error) {
+                window.debugLog('Native file save error: ' + error.message);
+                return false;
+            }
+        };
+
+        // Enhanced Android file saving with native fallback
+        window.saveFileOnAndroid = async function(blob, filename, mimeType) {
+            try {
+                window.debugLog('Android file save - trying multiple methods...');
+                
+                // Method 1: Try native file saving through C#
+                try {
+                    window.debugLog('Method 1: Native C# file saving...');
+
+                    const base64Data = await new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                          // Remove the data URL prefix (data:video/webm;base64,)
+                          const base64 = reader.result.split(',')[1];
+                          resolve(base64);
+                        };
+                        reader.onerror = reject;
+                        reader.readAsDataURL(blob);
+                      });
+                      
+                    const nativeResult = await window.saveFileNatively(base64Data, filename, mimeType);
+                    if (nativeResult) {
+                        window.debugLog('Native save successful!');
+                        return true;
+                    }
+                    
+                    window.debugLog('Native save failed, trying WebView download...');
+                    
+                    // Method 1b: Try WebView download trigger
+                    const webViewResult = window.triggerWebViewDownload(base64Data, filename, mimeType);
+                    if (webViewResult) {
+                        window.debugLog('WebView download triggered successfully!');
+                        return true;
+                    }
+                    
+                } catch (nativeError) {
+                    window.debugLog('Native save error: ' + nativeError.message);
+                }
+                
+                // Method 2: File System Access API if available
+                if ('showSaveFilePicker' in window) {
+                    window.debugLog('Method 2: File System Access API...');
+                    try {
+                        const fileHandle = await window.showSaveFilePicker({
+                            suggestedName: filename,
+                            types: [{
+                                description: 'Video files',
+                                accept: {
+                                    [mimeType]: [`.${filename.split('.').pop()}`]
+                                }
+                            }]
+                        });
+                        
+                        const writable = await fileHandle.createWritable();
+                        await writable.write(blob);
+                        await writable.close();
+                        window.debugLog('File System Access API successful!');
+                        return true;
+                    } catch (fsError) {
+                        window.debugLog('File System Access API failed: ' + fsError.message);
+                    }
+                }
+                
+                // Method 3: Web Share API for Android
+                if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([blob], filename, { type: mimeType })] })) {
+                    window.debugLog('Method 3: Web Share API...');
+                    try {
+                        const file = new File([blob], filename, { type: mimeType });
+                        await navigator.share({
+                            files: [file],
+                            title: 'VirtualNanny Recording',
+                            text: 'Recorded video from VirtualNanny'
+                        });
+                        window.debugLog('Web Share API successful!');
+                        return true;
+                    } catch (shareError) {
+                        window.debugLog('Web Share API failed: ' + shareError.message);
+                    }
+                }
+                
+                // Method 4: Fallback to standard download
+                window.debugLog('Method 4: Fallback download...');
+                window.fallbackAndroidSave(blob, filename);
+                return true;
+                
+            } catch (error) {
+                window.debugLog('All Android save methods failed: ' + error.message);
+                return false;
+            }
+        };
+
+        // Fallback Android save method
+        window.fallbackAndroidSave = function(blob, filename) {
+            try {
+                window.debugLog('Using fallback Android save method');
+                
+                // Create a data URL and try to open in new tab
+                const reader = new FileReader();
+                reader.onload = function() {
+                    try {
+                        // Try to create a link and click it
+                        const a = document.createElement('a');
+                        a.href = reader.result;
+                        a.download = filename;
+                        a.style.display = 'none';
+                        document.body.appendChild(a);
+                        
+                        // Simulate user interaction to trigger download
+                        const clickEvent = new MouseEvent('click', {
+                            view: window,
+                            bubbles: true,
+                            cancelable: true
+                        });
+                        a.dispatchEvent(clickEvent);
+                        
+                        document.body.removeChild(a);
+                        window.debugLog('Fallback download triggered');
+                        
+                        // Also try to open in new window as additional fallback
+                        setTimeout(() => {
+                            try {
+                                const newWindow = window.open(reader.result, '_blank');
+                                if (newWindow) {
+                                    window.debugLog('Opened file in new window');
+                                } else {
+                                    window.debugLog('Could not open new window - popup blocked?');
+                                }
+                            } catch (e) {
+                                window.debugLog('New window open failed: ' + e.message);
+                            }
+                        }, 1000);
+                        
+                    } catch (linkError) {
+                        window.debugLog('Link download failed: ' + linkError.message);
+                    }
+                };
+                reader.onerror = function() {
+                    window.debugLog('FileReader error');
+                };
+                reader.readAsDataURL(blob);
+                
+            } catch (error) {
+                window.debugLog('Fallback save failed: ' + error.message);
+            }
+        };
+
+        // Standard web download function
+        window.downloadFileStandard = function(blob, filename) {
+            try {
+                window.debugLog('Using standard web download');
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                a.style.display = 'none';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                
+                // Clean up the URL after a delay
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+                window.debugLog('Standard download completed');
+            } catch (error) {
+                window.debugLog('Standard download error: ' + error.message);
+            }
+        };
+
+        // Add function to check recording capabilities
+        window.checkRecordingSupport = function() {
+            const info = [];
+            
+            info.push('=== Recording Support Check ===');
+            info.push('MediaRecorder supported: ' + !!window.MediaRecorder);
+            
+            if (window.MediaRecorder) {
+                const supportedTypes = [
+                    'video/webm;codecs=vp9,opus',
+                    'video/webm;codecs=vp8,opus', 
+                    'video/webm;codecs=h264,opus',
+                    'video/webm;codecs=vp9',
+                    'video/webm;codecs=vp8',
+                    'video/webm',
+                    'video/mp4;codecs=h264,aac',
+                    'video/mp4'
+                ];
+                
+                info.push('Supported MIME types:');
+                supportedTypes.forEach(type => {
+                    const supported = MediaRecorder.isTypeSupported(type);
+                    info.push(`  ${type}: ${supported ? 'YES' : 'NO'}`);
+                });
+            }
+            
+            if (currentStream) {
+                const videoTracks = currentStream.getVideoTracks();
+                const audioTracks = currentStream.getAudioTracks();
+                info.push(`Current stream: ${videoTracks.length} video, ${audioTracks.length} audio tracks`);
+            }
+            
+            alert(info.join('\n'));
+        };
+
+        // Get available camera devices
+        window.getCameraDevices = async function() {
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const cameras = devices.filter(device => device.kind === 'videoinput');
+                window.debugLog('Available cameras: ' + cameras.length);
+                cameras.forEach((camera, index) => {
+                    window.debugLog(`Camera ${index}: ${camera.label || 'Unknown'}`);
+                });
+                return cameras;
+            } catch (error) {
+                window.debugLog('Error enumerating devices: ' + error.message);
+                return [];
+            }
+        };
+
+        // Function to show recent logs as alert (for Android debugging)
+        window.showRecentLogs = function() {
+            const logs = [];
+            
+            // Get last few console messages if available
+            if (window.androidDebugLogs && window.androidDebugLogs.length > 0) {
+                logs.push('=== Recent Debug Logs ===');
+                logs.push(...window.androidDebugLogs.slice(-5)); // Last 5 logs
+            }
+            
+            // Add current status
+            logs.push('=== Current Status ===');
+            logs.push('URL: ' + window.location.href);
+            logs.push('Secure Context: ' + window.isSecureContext);
+            logs.push('MediaDevices: ' + !!navigator.mediaDevices);
+            logs.push('getUserMedia: ' + !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia));
+            logs.push('Video elements: ' + document.querySelectorAll('video').length);
+            logs.push('Current camera type: ' + (currentCameraType || 'Unknown'));
+            logs.push('Is initializing: ' + isInitializing);
+            
+            if (currentStream) {
+                logs.push('Active stream tracks: ' + currentStream.getTracks().length);
+                currentStream.getTracks().forEach((track, i) => {
+                    logs.push(`Track ${i}: ${track.kind} - ${track.readyState}`);
+                });
+            } else {
+                logs.push('No active stream');
+            }
+            
+            alert(logs.join('\n'));
+        };
+
+        // Ultimate permission fix - try multiple approaches
+        window.ultimatePermissionFix = async function() {
+            window.debugLog('Starting ultimate permission fix...');
+            
+            // Approach 1: User gesture simulation
+            try {
+                window.debugLog('Approach 1: Simulating user gesture...');
+                
+                // Create and dispatch user events
+                const clickEvent = new MouseEvent('click', { bubbles: true, cancelable: true });
+                const touchEvent = new TouchEvent('touchstart', { bubbles: true, cancelable: true });
+                
+                document.dispatchEvent(clickEvent);
+                document.dispatchEvent(touchEvent);
+                
+                // Wait a bit
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                const stream1 = await navigator.mediaDevices.getUserMedia({ video: true });
+                stream1.getTracks().forEach(track => track.stop());
+                window.debugLog('Approach 1: SUCCESS - User gesture worked!');
+                return true;
+            } catch (error) {
+                window.debugLog('Approach 1 failed: ' + error.message);
+            }
+            
+            // Approach 2: Try with different video constraints
+            try {
+                window.debugLog('Approach 2: Different video constraints...');
+                
+                const constraints = [
+                    { video: { width: 320, height: 240, frameRate: 15 } },
+                    { video: { width: { max: 640 }, height: { max: 480 } } },
+                    { video: { facingMode: "environment" } },
+                    { video: { facingMode: "user" } },
+                    { video: true }
+                ];
+                
+                for (let i = 0; i < constraints.length; i++) {
+                    try {
+                        window.debugLog(`Trying constraint ${i + 1}: ${JSON.stringify(constraints[i])}`);
+                        const stream = await navigator.mediaDevices.getUserMedia(constraints[i]);
+                        stream.getTracks().forEach(track => track.stop());
+                        window.debugLog(`Approach 2: SUCCESS with constraint ${i + 1}!`);
+                        return true;
+                    } catch (constraintError) {
+                        window.debugLog(`Constraint ${i + 1} failed: ${constraintError.message}`);
                     }
                 }
             } catch (error) {
-                console.error('Error with recording:', error);
+                window.debugLog('Approach 2 failed: ' + error.message);
+            }
+            
+            // Approach 3: Force permission through iframe
+            try {
+                window.debugLog('Approach 3: iframe approach...');
+                
+                const iframe = document.createElement('iframe');
+                iframe.style.display = 'none';
+                iframe.src = 'data:text/html,<script>navigator.mediaDevices.getUserMedia({video:true}).then(s=>s.getTracks().forEach(t=>t.stop()))';
+                document.body.appendChild(iframe);
+                
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                document.body.removeChild(iframe);
+                
+                // Try again after iframe
+                const stream3 = await navigator.mediaDevices.getUserMedia({ video: true });
+                stream3.getTracks().forEach(track => track.stop());
+                window.debugLog('Approach 3: SUCCESS - iframe approach worked!');
+                return true;
+            } catch (error) {
+                window.debugLog('Approach 3 failed: ' + error.message);
+            }
+            
+            window.debugLog('All permission fix approaches failed');
+            return false;
+        };
+
+        // Enhanced permission request for Android
+        window.enhancedPermissionRequest = async function() {
+            try {
+                window.debugLog('Starting enhanced permission request...');
+                
+                // Method 1: Direct prompt with audio + video
+                try {
+                    window.debugLog('Method 1: Direct audio+video request...');
+                    const stream1 = await navigator.mediaDevices.getUserMedia({ 
+                        video: { 
+                            facingMode: 'environment',
+                            width: { ideal: 640 },
+                            height: { ideal: 480 }
+                        }, 
+                        audio: true 
+                    });
+                    
+                    // Don't stop immediately - keep for a moment to ensure permission is granted
+                    setTimeout(() => {
+                        stream1.getTracks().forEach(track => track.stop());
+                        window.debugLog('Method 1: SUCCESS - Enhanced permissions granted!');
+                    }, 1000);
+                    
+                    return true;
+                } catch (error) {
+                    window.debugLog('Method 1 failed: ' + error.message);
+                }
+                
+                // Method 2: Video first, then audio
+                try {
+                    window.debugLog('Method 2: Video first, then audio...');
+                    const videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    window.debugLog('Video permission granted, now requesting audio...');
+                    
+                    const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    window.debugLog('Audio permission also granted!');
+                    
+                    // Clean up
+                    videoStream.getTracks().forEach(track => track.stop());
+                    audioStream.getTracks().forEach(track => track.stop());
+                    
+                    window.debugLog('Method 2: SUCCESS - Separate permissions granted!');
+                    return true;
+                } catch (error) {
+                    window.debugLog('Method 2 failed: ' + error.message);
+                }
+                
+                // Method 3: Just video with specific constraints
+                try {
+                    window.debugLog('Method 3: Video only with constraints...');
+                    const constraints = [
+                        { video: { facingMode: "environment" } },
+                        { video: { facingMode: "user" } },
+                        { video: { width: 320, height: 240 } },
+                        { video: true }
+                    ];
+                    
+                    for (let i = 0; i < constraints.length; i++) {
+                        try {
+                            window.debugLog(`Trying constraint ${i + 1}: ${JSON.stringify(constraints[i])}`);
+                            const stream = await navigator.mediaDevices.getUserMedia(constraints[i]);
+                            stream.getTracks().forEach(track => track.stop());
+                            window.debugLog(`Method 3: SUCCESS with constraint ${i + 1}!`);
+                            return true;
+                        } catch (constraintError) {
+                            window.debugLog(`Constraint ${i + 1} failed: ${constraintError.message}`);
+                        }
+                    }
+                } catch (error) {
+                    window.debugLog('Method 3 failed: ' + error.message);
+                }
+                
+                window.debugLog('All enhanced permission methods failed');
+                return false;
+                
+            } catch (error) {
+                window.debugLog('Enhanced permission request error: ' + error.message);
+                return false;
+            }
+        };
+
+        // Add forced WebView permission trigger
+        window.forceWebViewPermissions = async function() {
+            try {
+                window.debugLog('Forcing WebView permissions through multiple triggers...');
+                
+                // Trigger 1: Create user events
+                const events = [
+                    new Event('click', { bubbles: true }),
+                    new Event('touchstart', { bubbles: true }),
+                    new Event('pointerdown', { bubbles: true }),
+                    new Event('mousedown', { bubbles: true })
+                ];
+                
+                events.forEach(event => {
+                    document.dispatchEvent(event);
+                    document.body.dispatchEvent(event);
+                });
+                
+                // Small delay to let events process
+                await new Promise(resolve => setTimeout(resolve, 200));
+                
+                // Trigger 2: Create invisible elements that request permissions
+                const videoElement = document.createElement('video');
+                videoElement.style.display = 'none';
+                videoElement.autoplay = true;
+                videoElement.muted = true;
+                document.body.appendChild(videoElement);
+                
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ 
+                        video: true,
+                        audio: false 
+                    });
+                    
+                    videoElement.srcObject = stream;
+                    
+                    // Wait a moment and clean up
+                    setTimeout(() => {
+                        stream.getTracks().forEach(track => track.stop());
+                        document.body.removeChild(videoElement);
+                        window.debugLog('Force WebView permissions: SUCCESS!');
+                    }, 1000);
+                    
+                    return true;
+                } catch (error) {
+                    document.body.removeChild(videoElement);
+                    window.debugLog('Force WebView permissions failed: ' + error.message);
+                    return false;
+                }
+                
+            } catch (error) {
+                window.debugLog('Force WebView permissions error: ' + error.message);
+                return false;
             }
         };
 
         // Cleanup function
         window.addEventListener('beforeunload', function () {
+            window.debugLog('Page unloading, cleaning up');
             if (currentStream) {
                 currentStream.getTracks().forEach(track => track.stop());
             }
         });
+
+        // Initialize debug logging
+        window.addEventListener('DOMContentLoaded', function() {
+            window.debugLog('DOM loaded, camera support check:');
+            window.debugLog('Location: ' + window.location.protocol + '//' + window.location.host);
+            window.debugLog('Is secure context: ' + window.isSecureContext);
+            window.debugLog('navigator.mediaDevices: ' + !!navigator.mediaDevices);
+            window.debugLog('getUserMedia: ' + !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia));
+            window.debugLog('MediaRecorder: ' + !!window.MediaRecorder);
+            
+            // Test permissions
+            if (navigator.permissions) {
+                navigator.permissions.query({name: 'camera'}).then(function(result) {
+                    window.debugLog('Camera permission state: ' + result.state);
+                }).catch(function(error) {
+                    window.debugLog('Error checking camera permission: ' + error.message);
+                });
+                
+                navigator.permissions.query({name: 'microphone'}).then(function(result) {
+                    window.debugLog('Microphone permission state: ' + result.state);
+                }).catch(function(error) {
+                    window.debugLog('Error checking microphone permission: ' + error.message);
+                });
+            }
+            
+            // Test available devices
+            if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+                navigator.mediaDevices.enumerateDevices().then(function(devices) {
+                    window.debugLog('Available media devices:');
+                    devices.forEach(function(device, index) {
+                        window.debugLog(`Device ${index}: ${device.kind} - ${device.label || 'No label'}`);
+                    });
+                }).catch(function(error) {
+                    window.debugLog('Error enumerating devices: ' + error.message);
+                });
+            }
+        });
+        
+        // Enhanced function to show available cameras
+        window.showAvailableCameras = async function() {
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const cameras = devices.filter(device => device.kind === 'videoinput');
+                
+                const cameraInfo = [];
+                cameraInfo.push('=== Available Cameras ===');
+                cameraInfo.push(`Total cameras found: ${cameras.length}`);
+                
+                cameras.forEach((camera, index) => {
+                    cameraInfo.push(`Camera ${index + 1}:`);
+                    cameraInfo.push(`  Label: ${camera.label || 'Unknown camera'}`);
+                    cameraInfo.push(`  Device ID: ${camera.deviceId.substring(0, 12)}...`);
+                    cameraInfo.push(`  Group ID: ${camera.groupId.substring(0, 8)}...`);
+                    cameraInfo.push('');
+                });
+                
+                if (currentStream) {
+                    const videoTrack = currentStream.getVideoTracks()[0];
+                    if (videoTrack) {
+                        const settings = videoTrack.getSettings();
+                        cameraInfo.push('=== Current Camera ===');
+                        cameraInfo.push(`Facing mode: ${settings.facingMode || 'Unknown'}`);
+                        cameraInfo.push(`Device ID: ${settings.deviceId ? settings.deviceId.substring(0, 12) + '...' : 'Unknown'}`);
+                        cameraInfo.push(`Resolution: ${settings.width}x${settings.height}`);
+                        cameraInfo.push(`Frame rate: ${settings.frameRate || 'Unknown'}`);
+                        cameraInfo.push(`Current camera type: ${currentCameraType || 'Unknown'}`);
+                    }
+                }
+                
+                alert(cameraInfo.join('\n'));
+                
+            } catch (error) {
+                alert('Error getting camera info: ' + error.message);
+            }
+        };
+
+        // Add function to test recording manually
+        window.testRecording = async function(durationSeconds = 5) {
+            window.debugLog('Starting test recording for ' + durationSeconds + ' seconds...');
+            
+            try {
+                // Start recording
+                await window.toggleRecording(true);
+                window.debugLog('Test recording started');
+                
+                // Stop after specified duration
+                setTimeout(async () => {
+                    try {
+                        await window.toggleRecording(false);
+                        window.debugLog('Test recording completed');
+                    } catch (error) {
+                        window.debugLog('Error stopping test recording: ' + error.message);
+                    }
+                }, durationSeconds * 1000);
+                
+                return true;
+            } catch (error) {
+                window.debugLog('Test recording failed: ' + error.message);
+                return false;
+            }
+        };
+
+        // Add function to check download capabilities
+        window.checkDownloadCapabilities = function() {
+            const info = [];
+            
+            info.push('=== Download Capabilities Check ===');
+            info.push('Platform: ' + navigator.platform);
+            info.push('User Agent: ' + navigator.userAgent.substring(0, 100) + '...');
+            info.push('Is Android: ' + (navigator.userAgent.includes('Android') || typeof Android !== 'undefined'));
+            
+            // Check for various download APIs
+            info.push('File System Access API: ' + ('showSaveFilePicker' in window ? 'YES' : 'NO'));
+            info.push('Web Share API: ' + ('share' in navigator ? 'YES' : 'NO'));
+            
+            if ('share' in navigator) {
+                info.push('Can Share Files: ' + ('canShare' in navigator ? 'YES' : 'NO'));
+            }
+            
+            info.push('Blob URLs supported: ' + ('URL' in window && 'createObjectURL' in URL ? 'YES' : 'NO'));
+            info.push('Download attribute supported: ' + ('download' in document.createElement('a') ? 'YES' : 'NO'));
+            
+            // Storage estimates
+            if ('storage' in navigator && 'estimate' in navigator.storage) {
+                navigator.storage.estimate().then(estimate => {
+                    const storage = estimate.quota ? (estimate.quota / (1024 * 1024 * 1024)).toFixed(2) + ' GB' : 'Unknown';
+                    const used = estimate.usage ? (estimate.usage / (1024 * 1024)).toFixed(2) + ' MB' : 'Unknown';
+                    alert(info.join('\n') + '\n\nStorage Quota: ' + storage + '\nStorage Used: ' + used);
+                }).catch(() => {
+                    alert(info.join('\n') + '\n\nStorage info: Not available');
+                });
+            } else {
+                info.push('Storage API: NO');
+                alert(info.join('\n'));
+            }
+        };
+
+        // Add function to trigger downloads through WebView DownloadListener
+        window.triggerWebViewDownload = function(base64Data, filename, mimeType) {
+            try {
+                window.debugLog('Triggering WebView download: ' + filename);
+                
+                // Convert base64 to blob
+                const byteCharacters = atob(base64Data);
+                const byteNumbers = new Array(byteCharacters.length);
+                for (let i = 0; i < byteCharacters.length; i++) {
+                    byteNumbers[i] = byteCharacters.charCodeAt(i);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                const blob = new Blob([byteArray], { type: mimeType });
+                
+                // Create object URL for the blob
+                const url = URL.createObjectURL(blob);
+                
+                // Create a temporary link to trigger the download
+                const tempLink = document.createElement('a');
+                tempLink.href = url;
+                tempLink.download = filename;
+                tempLink.style.display = 'none';
+                
+                // Add to DOM, click, and remove
+                document.body.appendChild(tempLink);
+                
+                // Add click event listener for debugging
+                tempLink.addEventListener('click', function() {
+                    window.debugLog('Download link clicked');
+                });
+                
+                // Trigger click programmatically
+                tempLink.click();
+                
+                // Clean up
+                setTimeout(() => {
+                    document.body.removeChild(tempLink);
+                    URL.revokeObjectURL(url);
+                    window.debugLog('Download cleanup completed');
+                }, 1000);
+                
+                return true;
+            } catch (error) {
+                window.debugLog('WebView download error: ' + error.message);
+                return false;
+            }
+        };
+
+        // Add function to verify camera stream is working before recording
+        window.verifyCameraStream = function() {
+            const info = [];
+            
+            info.push('=== Camera Stream Verification ===');
+            
+            const video = document.getElementById('cameraVideo');
+            if (!video) {
+                info.push('❌ Video element not found');
+                return alert(info.join('\n'));
+            }
+            
+            info.push('✅ Video element found');
+            info.push(`Video dimensions: ${video.videoWidth}x${video.videoHeight}`);
+            info.push(`Video ready state: ${video.readyState}`);
+            info.push(`Video paused: ${video.paused}`);
+            info.push(`Video ended: ${video.ended}`);
+            info.push(`Video src: ${video.srcObject ? 'Stream assigned' : 'No stream'}`);
+            
+            if (currentStream) {
+                info.push('✅ Current stream exists');
+                info.push(`Stream tracks: ${currentStream.getTracks().length}`);
+                
+                currentStream.getTracks().forEach((track, i) => {
+                    info.push(`Track ${i}: ${track.kind} - ${track.readyState} - enabled: ${track.enabled}`);
+                    
+                    if (track.kind === 'video') {
+                        const settings = track.getSettings();
+                        info.push(`  Video settings: ${settings.width}x${settings.height} @ ${settings.frameRate}fps`);
+                    }
+                });
+            } else {
+                info.push('❌ No current stream available');
+            }
+            
+            // Check if video is actually displaying content
+            if (video.videoWidth > 0 && video.videoHeight > 0 && !video.paused) {
+                info.push('✅ Video appears to be playing correctly');
+            } else {
+                info.push('⚠️ Video may not be displaying correctly');
+            }
+            
+            alert(info.join('\n'));
+        };
     </script>
-
 </body>
-
 </html>

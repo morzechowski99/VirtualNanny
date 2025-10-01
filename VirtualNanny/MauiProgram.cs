@@ -1,40 +1,62 @@
 ﻿using Microsoft.Extensions.Logging;
-using CommunityToolkit.Maui;
 using MudBlazor.Services;
+using VirtualNanny.Components;
+using VirtualNanny.Services;
 
-namespace VirtualNanny
-{
-    public static class MauiProgram
-    {
-        public static MauiApp CreateMauiApp()
-        {
-            var builder = MauiApp.CreateBuilder();
-            builder
-                .UseMauiApp<App>()
-                .UseMauiCommunityToolkit()
-                .ConfigureFonts(fonts =>
-                {
-                    fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
-                });
-
-            // Add Blazor services
-            builder.Services.AddMauiBlazorWebView();
-            
-            // Add MudBlazor services
-            builder.Services.AddMudServices();
-
-            // For .NET 9+ - MAUI Blazor WebView handles static assets automatically
-            // The fingerprinting is handled by the WebView component itself
-
-#if DEBUG
-            builder.Services.AddBlazorWebViewDeveloperTools();
-            builder.Logging.AddDebug();
-            builder.Logging.SetMinimumLevel(LogLevel.Debug);
-#else
-            builder.Logging.SetMinimumLevel(LogLevel.Warning);
+#if ANDROID
+using VirtualNanny.Platforms.Android;
+using VirtualNanny.Platforms.Android.Services;
+using Microsoft.AspNetCore.Components.WebView.Maui;
+#elif WINDOWS
+using VirtualNanny.Platforms.Windows.Services;
+#elif IOS
+using VirtualNanny.Platforms.iOS.Services;
+#elif MACCATALYST
+using VirtualNanny.Platforms.MacCatalyst.Services;
 #endif
 
-            return builder.Build();
-        }
+namespace VirtualNanny;
+
+public static class MauiProgram
+{
+    public static MauiApp CreateMauiApp()
+    {
+        var builder = MauiApp.CreateBuilder();
+        builder
+            .UseMauiApp<App>()
+            .ConfigureFonts(fonts =>
+            {
+                fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
+            });
+
+        // Register Blazor components and services
+        builder.Services.AddMauiBlazorWebView();
+        builder.Services.AddMudServices();
+
+        // Register file service for each platform
+#if ANDROID
+        builder.Services.AddSingleton<IFileService, AndroidFileService>();
+        
+        // Configure custom WebView handler for Android
+        builder.ConfigureMauiHandlers(handlers =>
+        {
+#if ANDROID
+            handlers.AddHandler<BlazorWebView, CameraBlazorWebViewHandler>();
+#endif
+        });
+#elif WINDOWS
+        builder.Services.AddSingleton<IFileService, WindowsFileService>();
+#elif IOS
+        builder.Services.AddSingleton<IFileService, iOSFileService>();
+#elif MACCATALYST
+        builder.Services.AddSingleton<IFileService, MacCatalystFileService>();
+#endif
+
+#if DEBUG
+        builder.Services.AddBlazorWebViewDeveloperTools();
+        builder.Logging.AddDebug();
+#endif
+
+        return builder.Build();
     }
 }
