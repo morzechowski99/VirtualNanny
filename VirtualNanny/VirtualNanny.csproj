@@ -68,4 +68,25 @@
         <PackageReference Include="MudBlazor" Version="8.12.0" />
     </ItemGroup>
 
+    <!-- Include TypeScript sources in Solution Explorer so they are visible in Visual Studio -->
+    <ItemGroup>
+      <!-- TypeScript source files from scripts-src/ folder -->
+      <Content Include="..\scripts-src\**\*.ts">
+        <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+        <Link>scripts-src\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      </Content>
+      <!-- Build configuration files -->
+      <Content Include="..\tsconfig.json">
+        <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+        <Link>tsconfig.json</Link>
+      </Content>
+      <Content Include="..\webpack.config.js">
+        <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+        <Link>webpack.config.js</Link>
+      </Content>
+      <Content Include="..\package.json">
+        <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+        <Link>package.json</Link>
+      </Content>
+    </ItemGroup>
 </Project>

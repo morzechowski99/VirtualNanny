@@ -362,3 +362,30 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 /VirtualNanny.CryDetection.Training/learning_data
+
+# Node.js / npm - TypeScript bundle output
+dist/
+node_modules/
+*.tsbuildinfo
+
+# npm lock files
+package-lock.json
+npm-debug.log*
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE - VS Code specific
+.vscode/
+.vscode/settings.json
+
+# Temporary files from Copilot/IDE
+/temp/
+*.tmp
+*.temp
+C:\Users\*\AppData\Local\Temp\VisualStudio\copilot-vs\*
+C:\Users\*\AppData\Local\Temp\*.html
+
+# Old source directory (before rename to scripts-src)
