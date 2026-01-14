@@ -68,6 +68,11 @@
         <PackageReference Include="MudBlazor" Version="8.12.0" />
     </ItemGroup>
 
+    <ItemGroup>
+        <ProjectReference Include="..\VirtualNanny.AudioAnalysis\VirtualNanny.AudioAnalysis.csproj" />
+        <ProjectReference Include="..\VirtualNanny.CryDetection.Core\VirtualNanny.CryDetection.Core.csproj" />
+    </ItemGroup>
+
     <!-- Include TypeScript sources in Solution Explorer so they are visible in Visual Studio -->
     <ItemGroup>
       <!-- TypeScript source files from scripts-src/ folder -->

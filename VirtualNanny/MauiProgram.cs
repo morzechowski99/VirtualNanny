@@ -1,7 +1,10 @@
 ﻿using Microsoft.Extensions.Logging;
 using MudBlazor.Services;
+using VirtualNanny.AudioAnalysis;
+using VirtualNanny.AudioAnalysis.Interfaces;
 using VirtualNanny.Components;
 using VirtualNanny.Services;
+using VirtualNanny.Services.Interfaces;
 
 #if ANDROID
 using VirtualNanny.Platforms.Android;
@@ -33,9 +36,21 @@ public static class MauiProgram
         builder.Services.AddMauiBlazorWebView();
         builder.Services.AddMudServices();
 
-        // Register file service for each platform
+        // Register audio analysis services
+        builder.Services.AddSingleton<ICryDetector, ThresholdCryDetector>();
+
+        // Register detection service
+        builder.Services.AddSingleton<ICryDetectionService, CryDetectionService>();
+
+        // Register notification service (platform-independent)
+        builder.Services.AddSingleton<INotificationService, NotificationService>();
+
+        // Register platform-specific services
 #if ANDROID
         builder.Services.AddSingleton<IFileService, AndroidFileService>();
+        builder.Services.AddSingleton<IRTSPStreamService, AndroidRTSPStreamService>();
+        builder.Services.AddSingleton<IRecordingService, AndroidRecordingService>();
+        builder.Services.AddSingleton<IMediaService, AndroidMediaService>();
         
         // Configure custom WebView handler for Android
         builder.ConfigureMauiHandlers(handlers =>
@@ -46,10 +61,15 @@ public static class MauiProgram
         });
 #elif WINDOWS
         builder.Services.AddSingleton<IFileService, WindowsFileService>();
+        builder.Services.AddSingleton<IRTSPStreamService, WindowsRTSPStreamService>();
+        builder.Services.AddSingleton<IRecordingService, WindowsRecordingService>();
+        builder.Services.AddSingleton<IMediaService, WindowsMediaService>();
 #elif IOS
         builder.Services.AddSingleton<IFileService, iOSFileService>();
+        // TODO: Add iOS-specific implementations of IRTSPStreamService, IRecordingService, IMediaService
 #elif MACCATALYST
         builder.Services.AddSingleton<IFileService, MacCatalystFileService>();
+        // TODO: Add macCatalyst-specific implementations of IRTSPStreamService, IRecordingService, IMediaService
 #endif
 
 #if DEBUG
